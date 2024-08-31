@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hacker Style Real-Time Object Detector</title>
+    <style>
+        body {
+            font-family: "Courier New", monospace;
+            background-color: black;
+            color: #00FF00; /* Hacker Green */
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        h1 {
+            margin: 20px 0;
+        }
+        video, canvas {
+            border: 2px solid #00FF00; /* Green border */
+            width: 100%;
+            height: auto;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #status {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Content -->
+    <div id="main-content">
+        <h1>Real-Time Object Detector - Hacker Style</h1>
+        <div style="position: relative; display: inline-block;">
+            <video id="webcam" autoplay playsinline width="640" height="480"></video>
+            <canvas id="canvas" width="640" height="480"></canvas>
+        </div>
+        <div id="status">Initializing...</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+    <script>
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const statusDisplay = document.getElementById('status');
+
+        // Access the webcam with basic constraints
+        async function setupCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: "environment" } } // Back camera
+                });
+                video.srcObject = stream;
+                return new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        resolve(video);
+                    };
+                });
+            } catch (error) {
+                alert("Error accessing the camera: " + error.message +
+                      "\nPlease ensure your browser has camera permissions enabled and the page is served over HTTPS.");
+                console.error("Camera error:", error);
+            }
+        }
+
+        // Load the model and start object detection
+        async function detectObjects() {
+            try {
+                const model = await cocoSsd.load();
+                statusDisplay.innerText = "Model loaded, starting scan...";
+                console.log('Model loaded');
+
+                // Start object detection when the video plays
+                setInterval(async () => {
+                    if (video.readyState === 4) {
+                        const predictions = await model.detect(video);
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        
+                        predictions.forEach((prediction) => {
+                            // Draw the bounding box
+                            ctx.beginPath();
+                            ctx.rect(...prediction.bbox);
+                            ctx.lineWidth = 2;
+                            ctx.strokeStyle = '#00FF00'; // Green color
+                            ctx.stroke();
+                            
+                            // Display the label and score inside the box
+                            const text = `${prediction.class} (${Math.round(prediction.score * 100)}%)`;
+                            ctx.font = '16px "Courier New", monospace';
+                            ctx.fillStyle = '#00FF00';
+                            const textWidth = ctx.measureText(text).width;
+                            const textHeight = 16; // Font size
+                            ctx.fillRect(prediction.bbox[0], prediction.bbox[1] - textHeight, textWidth + 10, textHeight + 5);
+                            ctx.fillStyle = 'black';
+                            ctx.fillText(text, prediction.bbox[0] + 5, prediction.bbox[1] - 5);
+                        });
+                    }
+                }, 100);
+            } catch (error) {
+                alert("Error loading model: " + error.message);
+                console.error("Model error:", error);
+            }
+        }
+
+        // Initialize the webcam and object detection
+        async function init() {
+            await setupCamera();
+            detectObjects();
+        }
+
+        init();
+    </script>
+</body>
+</html>
